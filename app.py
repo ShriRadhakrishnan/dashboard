@@ -12,8 +12,7 @@ import plotly.graph_objects as go
 app = Flask(__name__)
 
 # Alpaca API Keys
-API_KEY = "PKK06B7318DK7TBA67MM"
-SECRET_KEY = "uXQj0WhXnweBwE7iXQYhB0WlDmpteDDM3WpfPVbT"
+
 
 # Fetch open positions from Alpaca
 def get_open_positions(api_key, secret_key):
