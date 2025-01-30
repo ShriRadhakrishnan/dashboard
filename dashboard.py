@@ -90,8 +90,6 @@ def check_and_close_position(trading_client, ticker, current_price, stop_loss_pr
         closed_positions.add(ticker)
         return True
 
-
-
 # Sidebar: Fetch positions and allow manual search
 position_tickers = fetch_alpaca_positions()
 
@@ -109,10 +107,24 @@ else:
 if ticker == "Search for another ticker...":
     ticker = st.sidebar.text_input("Enter Stock Ticker", value="SPY")
 
+# Get query params for stop loss persistence
+query_params = st.query_params
+saved_stop_loss = query_params.get("stop_loss", None)
+
+# Initialize the stop loss value
+if saved_stop_loss is not None:
+    try:
+        saved_stop_loss = float(saved_stop_loss)  # Convert from string to float
+    except ValueError:
+        saved_stop_loss = None
+
+if "last_stop_loss" not in st.session_state:
+    st.session_state.last_stop_loss = saved_stop_loss if saved_stop_loss is not None else 0.0
+
 # Add a slider in the sidebar for trailing stop loss percentage
 trailing_stop_pct = st.sidebar.slider(
     "Trailing Stop Loss Percentage",
-    min_value=0.01, max_value=0.99, value=0.95, step=0.01,
+    min_value=0.90, max_value=0.99, value=0.95, step=0.01,
     help="Select the percentage for the trailing stop loss."
 )
 
@@ -143,24 +155,15 @@ else:
 # Fetch stock data
 data = fetch_stock_data(ticker, start_date, timeframe_mapping[selected_period])
 
-query_params = st.experimental_get_query_params()
-saved_stop_loss = query_params.get("stop_loss", [None])[0]
-
-if "last_stop_loss" not in st.session_state:
-    st.session_state.last_stop_loss = float(saved_stop_loss) if saved_stop_loss else 0.0  # Use stored value
-
-
+# Initialize or update stop loss with persistence
 avg_entry_price = position_tickers.get(ticker, None)
 if avg_entry_price:
     new_stop_loss = calculate_trailing_stop_loss(data, trailing_stop_pct, st.session_state.last_stop_loss)
 
-    # Only update if the new stop loss is greater
-    if st.session_state.last_stop_loss == 0.0 or new_stop_loss > st.session_state.last_stop_loss:
+    # Ensure the stop loss only moves up
+    if new_stop_loss > st.session_state.last_stop_loss:
         st.session_state.last_stop_loss = new_stop_loss
-
-        # Store the new stop loss in the URL query parameters
-        st.experimental_set_query_params(stop_loss=new_stop_loss)
-
+        st.query_params["stop_loss"] = new_stop_loss  # Persist in query params
 
     closed_positions = getattr(st.session_state, 'closed_positions', set())
     if check_and_close_position(trading_client, ticker, data["Close"].iloc[-1], st.session_state.last_stop_loss, position_tickers, closed_positions):
@@ -176,11 +179,6 @@ if show_trailing_stop and st.session_state.last_stop_loss is not None:
                   annotation_text=f"Stop Loss: {st.session_state.last_stop_loss:.2f}",
                   annotation_position="bottom right")
 
-# Format x-axis labels
-fig.update_xaxes(showticklabels=False, title=None)
-
-# Display the chart
 st.plotly_chart(fig, use_container_width=True)
 
-# Auto-refresh every 60 seconds
-st_autorefresh(interval=60000, key="refresh_data")
+st_autorefresh(interval=1000, key="refresh_data")
