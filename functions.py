@@ -16,12 +16,9 @@ STOP_LOSS_FILE = "stop_losses.json"
 #Json Functions
 
 def load_stop_losses():
-    try:
-        with open(STOP_LOSS_FILE, "r") as file:
-            content = file.read().strip()
-            return json.loads(content) if content else {}  
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}  
+    with open(STOP_LOSS_FILE, "r") as file:
+        content = file.read().strip()
+        return json.loads(content) if content else {}  
 
 def save_stop_losses(stop_losses):
     with open(STOP_LOSS_FILE, "w") as file:
@@ -91,47 +88,36 @@ def fetch_stock_data(ticker, start_date, _timeframe):
 
     return data
 
-def calculate_trailing_stop_loss(latest_price, trailing_stop_pct, last_stop_loss):
-    new_stop_loss = latest_price * trailing_stop_pct  # ✅ Compute new stop loss
-
-    if last_stop_loss is None or new_stop_loss > last_stop_loss:
-        return new_stop_loss 
-    else:
-        return last_stop_loss
-
-
-
 def monitor_and_close_positions():
 
     positions = fetch_alpaca_positions()  
     stop_losses = load_stop_losses() 
 
-    closed_positions = set()
 
     for ticker, entry_price in positions.items():
 
         stop_loss_price = stop_losses.get(ticker, {}).get("stop_loss", None)
 
         if stop_loss_price is None:
-            continue
+            stop_loss_price = entry_price * .9
+            update_stop_loss(ticker, entry_price * .9)
 
-        stock_data = fetch_stock_data(ticker, datetime.now() - timedelta(days=1), TimeFrame.Minute)
+        stock_data = fetch_stock_data(ticker, datetime.now() - timedelta(minutes=5), TimeFrame.Minute)
         if stock_data.empty:
             continue  
 
         latest_price = stock_data["Close"].iloc[-1]
 
-        if latest_price < stop_loss_price and ticker not in closed_positions:
+        if latest_price < stop_loss_price:
             close_position(ticker)
-            closed_positions.add(ticker) 
-
-    return closed_positions
+        elif get_stop_loss_pct(ticker) * latest_price > stop_loss_price:
+             update_stop_loss(ticker, get_stop_loss_pct(ticker) * latest_price)
 
 
 def close_position(ticker):
     try:
-        positions = trading_client.get_all_positions()
-        position_qty = next((float(pos.qty) for pos in positions if pos.symbol == ticker), None)
+        position = trading_client.get_open_position(ticker)
+        position_qty = position.qty
         if position_qty is None:
             return False
 
@@ -145,9 +131,6 @@ def close_position(ticker):
         return True
     except Exception as e:
         return False
-
-
-
 
 
 def place_order(ticker, order_type, order_side, quantity, quantity_type, limit_price=None):

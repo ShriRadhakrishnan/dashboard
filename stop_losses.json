@@ -1,14 +1,16 @@
 {
-    "AAPL": {
-        "stop_loss": 220.275
-    },
     "META": {
-        "stop_loss": 617.562
+        "stop_loss": 750,
+        "stop_loss_pct": 0.97
     },
     "NVDA": {
-        "stop_loss": 110.952
+        "stop_loss": 115.065
     },
     "SPY": {
-        "stop_loss": 545.3820000000001
+        "stop_loss": 548.93691
+    },
+    "AAPL": {
+        "stop_loss": 225.7128,
+        "stop_loss_pct": 0.94
     }
 }

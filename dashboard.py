@@ -65,7 +65,7 @@ with st.sidebar.expander("➕ Place Order", expanded=False) as order_expander:
         )
 
         if success:
-            st.toast(f"✅ Order placed: {order_side} {order_quantity} {order_ticker} as {order_type}", icon="✅")
+            st.toast(f"Order placed: {order_side} {order_quantity} {order_ticker} as {order_type}", icon="✅")
 
             for key in [f"{order_form_key}_ticker", f"{order_form_key}_type", f"{order_form_key}_side", 
                         f"{order_form_key}_qty_type", f"{order_form_key}_qty", f"{order_form_key}_amount", 
@@ -123,27 +123,10 @@ new_stop_loss_pct = st.sidebar.slider(
 )
 
 if new_stop_loss_pct > current_stop_loss_pct:
-    update_stop_loss_pct(ticker, new_stop_loss_pct)  # ✅ Save to JSON
-    current_stop_loss_pct = new_stop_loss_pct  # ✅ Update local variable to reflect new change
+    update_stop_loss_pct(ticker, new_stop_loss_pct)  
+    current_stop_loss_pct = new_stop_loss_pct  
 
-last_stop_loss = get_stop_loss(ticker)
-
-#Stop Loss Computation
-
-avg_entry_price = position_tickers.get(ticker, None)
-if avg_entry_price and not data.empty:
-    latest_price = data["Close"].iloc[-1]  
-    
-    new_stop_loss = calculate_trailing_stop_loss(
-        latest_price=latest_price,
-        trailing_stop_pct=current_stop_loss_pct, 
-        last_stop_loss=last_stop_loss
-    )
-
-    if new_stop_loss > last_stop_loss:
-        update_stop_loss(ticker, new_stop_loss)  
-
-    
+#Chart Display
 
 
 if selected_period == "1D":
@@ -152,8 +135,6 @@ elif selected_period == "1W":
     data["Time Stamp"] = data["Date"].dt.strftime("%b - %d, %I:%M %p")
 else:
     data["Time Stamp"] = data["Date"].dt.strftime("%Y-%m-%d")
-
-#Chart Display
 
 
 fig = px.line(
@@ -205,13 +186,13 @@ elif selected_period == "1W":
 
 fig.update_layout(height=700, width=2000)
 
+
 if show_trailing_stop and get_stop_loss(ticker) is not None:
     fig.add_hline(y=get_stop_loss(ticker), line_dash="dash", line_color="red",
                   annotation_text=f"Stop Loss: {get_stop_loss(ticker):.2f}",
                   annotation_position="bottom right")
 
 st.plotly_chart(fig, use_container_width=False)
-
 
 
 if "Volatility" in visible_charts:
@@ -227,5 +208,5 @@ if "Volatility" in visible_charts:
     st.plotly_chart(fig_volatility, use_container_width=False)
 
 
-#Refresh every second
+#Refresh every 10 second
 st_autorefresh(interval=10000, key="refresh_data")
